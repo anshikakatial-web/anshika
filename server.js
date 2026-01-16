@@ -1,3 +1,4 @@
+const mongoose = require("mongoose");
 const express = require("express");
 const http = require("http");
 const path = require("path");
@@ -5,7 +6,6 @@ const { Server } = require("socket.io");
 
 const app = express();
 const server = http.createServer(app);
-
 const io = new Server(server);
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -18,12 +18,20 @@ app.get("/", (req, res) => {
 const users = new Map();
 const MAX_USERS = 6;
 
-// Basic route (optional)
-app.get("/", (req, res) => {
-  res.send("Chat server is running");
+/* =======================
+   MongoDB Message Schema
+   ======================= */
+const messageSchema = new mongoose.Schema({
+  user: String,
+  text: String,
+  time: Date
 });
 
-// Socket.IO connection
+const Message = mongoose.model("Message", messageSchema);
+
+/* =======================
+   Socket.IO connection
+   ======================= */
 io.on("connection", (socket) => {
   console.log("User connected:", socket.id);
 
@@ -34,8 +42,7 @@ io.on("connection", (socket) => {
     return;
   }
 
-  // When user joins with a name
-  socket.on("join", (username) => {
+  socket.on("join", async (username) => {
     users.set(socket.id, username);
 
     // Notify others
@@ -43,18 +50,33 @@ io.on("connection", (socket) => {
 
     // Send current users list
     io.emit("users_list", Array.from(users.values()));
+
+    // Load last messages from MongoDB
+    try {
+      const messages = await Message.find()
+        .sort({ time: 1 })
+        .limit(50);
+
+      socket.emit("old_messages", messages);
+    } catch (err) {
+      console.log("Error fetching messages:", err);
+    }
   });
 
   // Handle incoming messages
-  socket.on("message", (msg) => {
+  socket.on("message", async (msg) => {
     const username = users.get(socket.id);
     if (!username) return;
 
-    io.emit("message", {
+    const message = new Message({
       user: username,
       text: msg,
-      time: new Date().toISOString()
+      time: new Date()
     });
+
+    await message.save();
+
+    io.emit("message", message);
   });
 
   // Handle disconnect
@@ -70,9 +92,23 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start server
+/* =======================
+   Start Server
+   ======================= */
 const PORT = process.env.PORT || 3000;
-
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
+});
+
+/* =======================
+   MongoDB Connection
+   ======================= */
+mongoose.connect(
+  "mongodb+srv://anshikakatial_db_user:KATIALANSHIKA@cluster0.xvgeu3h.mongodb.net/chatdb"
+)
+.then(() => {
+  console.log("MongoDB connected");
+})
+.catch((err) => {
+  console.log("MongoDB connection error:", err);
 });
