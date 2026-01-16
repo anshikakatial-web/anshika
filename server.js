@@ -99,16 +99,3 @@ const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`Server running on port ${PORT}`);
 });
-
-/* =======================
-   MongoDB Connection
-   ======================= */
-mongoose.connect(
-  "mongodb+srv://anshikakatial_db_user:KATIALANSHIKA@cluster0.xvgeu3h.mongodb.net/chatdb"
-)
-.then(() => {
-  console.log("MongoDB connected");
-})
-.catch((err) => {
-  console.log("MongoDB connection error:", err);
-});
