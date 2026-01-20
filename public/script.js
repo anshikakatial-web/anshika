@@ -1,11 +1,14 @@
 const socket = io(); 
 
+const CORRECT_PASSWORD = "12345";
+
 const joinContainer = document.getElementById("join-container");
 const chatContainer = document.getElementById("chat-container");
 const joinBtn = document.getElementById("join-btn");
 const sendBtn = document.getElementById("send-btn");
 
 const usernameInput = document.getElementById("username");
+const passwordInput = document.getElementById("password")
 const messageInput = document.getElementById("message-input");
 const messagesDiv = document.getElementById("messages");
 const usersDiv = document.getElementById("users");
@@ -13,22 +16,32 @@ const joinError = document.getElementById("join-error");
 
 //Load message history for new joiners.
 socket.on("message_history", messages => {
-  messagesDiv.innerHTML = "";
+  messagesDiv.innerHTML = \
   messages.forEach(msg => {
     addMessage(`${msg.username}: ${msg.text}`);
   });
 });
 
-
-// Join chat
 joinBtn.onclick = () => {
   const username = usernameInput.value.trim();
-  if (!username) return;
+  const password = passwordInput.value.trim();
+
+  if (!username || !password) {
+    alert("Username and Password are required!");
+    return;
+  }
+
+  if (password !== CORRECT_PASSWORD) {
+    alert("❌ Wrong Password!");
+    passwordInput.value = "";
+    return;
+  }
 
   socket.emit("join", username);
   joinContainer.classList.add("hidden");
   chatContainer.classList.remove("hidden");
 };
+
 
 // Send message
 sendBtn.onclick = sendMessage;
