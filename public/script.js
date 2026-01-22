@@ -1,4 +1,16 @@
-const socket = io(); 
+const socket = io({
+  transports: ["websocket"]
+});
+
+const USERS = {
+  anshika: "1111",
+  nishant: "2222",
+  vipul: "3333",
+  rohit: "4444",
+  neha: "5555",
+  aman: "6666"
+};
+
 
 const joinContainer = document.getElementById("join-container");
 const chatContainer = document.getElementById("chat-container");
@@ -8,53 +20,38 @@ const sendBtn = document.getElementById("send-btn");
 const usernameInput = document.getElementById("username");
 const passwordInput = document.getElementById("password");
 const messageInput = document.getElementById("message-input");
-
 const messagesDiv = document.getElementById("messages");
 const usersDiv = document.getElementById("users");
 const joinError = document.getElementById("join-error");
 
-// 🔐 Chat password
-const CHAT_PASSWORD = "12345";
-
-// =======================
-// JOIN CHAT WITH PASSWORD
-// =======================
 joinBtn.onclick = () => {
   const username = usernameInput.value.trim();
   const password = passwordInput.value.trim();
 
   if (!username || !password) {
-    joinError.textContent = "Username and password required!";
-    alert("Username and password required!");
+    alert("Username and Password are required!");
     return;
   }
 
-  if (password !== CHAT_PASSWORD) {
-    joinError.textContent = "Wrong password!";
-    alert("BHAI JI YE TOH GALT HAI KRIYPYA KRKE DUBARA TRY KRE!");
+  if (!USERS[username]) {
+    alert("❌ Invalid Username!");
     return;
   }
 
-  // Password correct
+  if (USERS[username] !== password) {
+    alert("❌ Wrong Password!");
+    passwordInput.value = "";
+    return;
+  }
+
+
   socket.emit("join", username);
   joinContainer.classList.add("hidden");
   chatContainer.classList.remove("hidden");
-  joinError.textContent = "";
 };
 
-// =======================
-// MESSAGE HISTORY
-// =======================
-socket.on("message_history", messages => {
-  messagesDiv.innerHTML = "";
-  messages.forEach(msg => {
-    addMessage(`${msg.username}: ${msg.text}`);
-  });
-});
 
-// =======================
-// SEND MESSAGE
-// =======================
+// Send message
 sendBtn.onclick = sendMessage;
 messageInput.addEventListener("keypress", e => {
   if (e.key === "Enter") sendMessage();
@@ -68,40 +65,58 @@ function sendMessage() {
   messageInput.value = "";
 }
 
-// =======================
-// SOCKET EVENTS
-// =======================
-socket.on("message", data => {
-  addMessage(`${data.user}: ${data.text}`);
+// Receive messages
+socket.on("old_messages", messages => {
+  messages.forEach(msg => {
+    const isOwn = msg.user === usernameInput.value.trim();
+    addMessage(`${msg.user}: ${msg.text}`, msg.time, isOwn);
+  });
 });
 
+socket.on("message", data => {
+  const isOwn = data.user === usernameInput.value.trim();
+  addMessage(`${data.user}: ${data.text}`, data.time, isOwn);
+});
+
+
+
+// User joined
 socket.on("user_joined", username => {
   addSystemMessage(`${username} joined`);
 });
 
+// User left
 socket.on("user_left", username => {
   addSystemMessage(`${username} left`);
 });
 
+// Update user list
 socket.on("users_list", users => {
   usersDiv.textContent = `Users (${users.length}/6): ${users.join(", ")}`;
 });
 
+// Room full
 socket.on("room_full", msg => {
   joinError.textContent = msg;
-  alert(msg);
 });
 
-// =======================
-// HELPERS
-// =======================
-function addMessage(text) {
+// Helpers
+function addMessage(text, time) {
   const div = document.createElement("div");
   div.className = "message";
-  div.textContent = text;
+  
+  // Add timestamp if provided
+  if (time) {
+    const timeStr = new Date(time).toLocaleTimeString();
+    div.textContent = `${text} [${timeStr}]`;
+  } else {
+    div.textContent = text;
+  }
+
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
+
 
 function addSystemMessage(text) {
   const div = document.createElement("div");
