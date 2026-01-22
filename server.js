@@ -52,7 +52,7 @@ app.get("/", (req, res) => {
 const users = new Map();
 const MAX_USERS = 6;
 
-/* 🔹 NEW: Allowed usernames & passwords */
+// 🔹 Allowed usernames & passwords
 const allowedUsers = {
   anshika: "1111",
   nishant: "2222",
@@ -74,28 +74,25 @@ io.on("connection", (socket) => {
     return;
   }
 
-  /* 🔹 CHANGED: join now receives username + password */
+  // 🔹 JOIN EVENT (fixed)
   socket.on("join", async ({ username, password }) => {
 
-    /* 🔹 NEW: Username validation */
     if (!allowedUsers[username]) {
       socket.emit("join_error", "❌ Invalid username");
       return;
     }
 
-    /* 🔹 NEW: Password validation */
     if (allowedUsers[username] !== password) {
       socket.emit("join_error", "❌ Wrong password");
       return;
     }
 
-    // ✅ Existing logic (UNCHANGED)
     users.set(socket.id, username);
 
     socket.broadcast.emit("user_joined", username);
     io.emit("users_list", Array.from(users.values()));
 
-    // Load last 50 messages
+    // ✅ FIX: Load & SEND message history
     const { rows } = await pool.query(
       `SELECT username, text, created_at
        FROM messages
@@ -106,6 +103,7 @@ io.on("connection", (socket) => {
     socket.emit("message_history", rows);
   });
 
+  // Send message
   socket.on("message", async (msg) => {
     const username = users.get(socket.id);
     if (!username) return;
@@ -124,6 +122,7 @@ io.on("connection", (socket) => {
     });
   });
 
+  // Disconnect
   socket.on("disconnect", () => {
     const username = users.get(socket.id);
     if (!username) return;
