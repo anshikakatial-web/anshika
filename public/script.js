@@ -2,6 +2,7 @@ const socket = io({
   transports: ["websocket"]
 });
 
+// Client-side helper (UI only)
 const USERS = {
   anshika: "1111",
   nishant: "2222",
@@ -10,7 +11,6 @@ const USERS = {
   neha: "5555",
   aman: "6666"
 };
-
 
 const joinContainer = document.getElementById("join-container");
 const chatContainer = document.getElementById("chat-container");
@@ -24,6 +24,9 @@ const messagesDiv = document.getElementById("messages");
 const usersDiv = document.getElementById("users");
 const joinError = document.getElementById("join-error");
 
+// =====================
+// JOIN CHAT
+// =====================
 joinBtn.onclick = () => {
   const username = usernameInput.value.trim();
   const password = passwordInput.value.trim();
@@ -44,14 +47,38 @@ joinBtn.onclick = () => {
     return;
   }
 
-
-  socket.emit("join", username);
-  joinContainer.classList.add("hidden");
-  chatContainer.classList.remove("hidden");
+  // ✅ FIX 1: send username + password
+  socket.emit("join", { username, password });
 };
 
+// =====================
+// SERVER ERRORS
+// =====================
+socket.on("join_error", msg => {
+  alert(msg);
+});
 
-// Send message
+socket.on("room_full", msg => {
+  alert(msg);
+});
+
+// =====================
+// MESSAGE HISTORY
+// =====================
+socket.on("message_history", messages => {
+  messagesDiv.innerHTML = "";
+
+  messages.forEach(msg => {
+    addMessage(`${msg.username}: ${msg.text}`, msg.created_at);
+  });
+
+  joinContainer.classList.add("hidden");
+  chatContainer.classList.remove("hidden");
+});
+
+// =====================
+// SEND MESSAGE
+// =====================
 sendBtn.onclick = sendMessage;
 messageInput.addEventListener("keypress", e => {
   if (e.key === "Enter") sendMessage();
@@ -65,47 +92,35 @@ function sendMessage() {
   messageInput.value = "";
 }
 
-// Receive messages
-socket.on("old_messages", messages => {
-  messages.forEach(msg => {
-    const isOwn = msg.user === usernameInput.value.trim();
-    addMessage(`${msg.user}: ${msg.text}`, msg.time, isOwn);
-  });
-});
-
+// =====================
+// RECEIVE MESSAGE
+// =====================
 socket.on("message", data => {
-  const isOwn = data.user === usernameInput.value.trim();
-  addMessage(`${data.user}: ${data.text}`, data.time, isOwn);
+  addMessage(`${data.user}: ${data.text}`, data.time);
 });
 
-
-
-// User joined
+// =====================
+// USER EVENTS
+// =====================
 socket.on("user_joined", username => {
   addSystemMessage(`${username} joined`);
 });
 
-// User left
 socket.on("user_left", username => {
   addSystemMessage(`${username} left`);
 });
 
-// Update user list
 socket.on("users_list", users => {
   usersDiv.textContent = `Users (${users.length}/6): ${users.join(", ")}`;
 });
 
-// Room full
-socket.on("room_full", msg => {
-  joinError.textContent = msg;
-});
-
-// Helpers
+// =====================
+// HELPERS
+// =====================
 function addMessage(text, time) {
   const div = document.createElement("div");
   div.className = "message";
-  
-  // Add timestamp if provided
+
   if (time) {
     const timeStr = new Date(time).toLocaleTimeString();
     div.textContent = `${text} [${timeStr}]`;
@@ -116,7 +131,6 @@ function addMessage(text, time) {
   messagesDiv.appendChild(div);
   messagesDiv.scrollTop = messagesDiv.scrollHeight;
 }
-
 
 function addSystemMessage(text) {
   const div = document.createElement("div");
