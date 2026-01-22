@@ -35,9 +35,7 @@ const server = http.createServer(app);
 
 const io = new Server(server, {
   transports: ["websocket", "polling"],
-  cors: {
-    origin: "*"
-  }
+  cors: { origin: "*" }
 });
 
 app.use(express.static(path.join(__dirname, "public")));
@@ -52,7 +50,6 @@ app.get("/", (req, res) => {
 const users = new Map();
 const MAX_USERS = 6;
 
-// 🔹 Allowed usernames & passwords
 const allowedUsers = {
   anshika: "1111",
   nishant: "2222",
@@ -74,7 +71,6 @@ io.on("connection", (socket) => {
     return;
   }
 
-  // 🔹 JOIN EVENT (fixed)
   socket.on("join", async ({ username, password }) => {
 
     if (!allowedUsers[username]) {
@@ -92,7 +88,6 @@ io.on("connection", (socket) => {
     socket.broadcast.emit("user_joined", username);
     io.emit("users_list", Array.from(users.values()));
 
-    // ✅ FIX: Load & SEND message history
     const { rows } = await pool.query(
       `SELECT username, text, created_at
        FROM messages
@@ -103,7 +98,6 @@ io.on("connection", (socket) => {
     socket.emit("message_history", rows);
   });
 
-  // Send message
   socket.on("message", async (msg) => {
     const username = users.get(socket.id);
     if (!username) return;
@@ -122,7 +116,6 @@ io.on("connection", (socket) => {
     });
   });
 
-  // Disconnect
   socket.on("disconnect", () => {
     const username = users.get(socket.id);
     if (!username) return;
@@ -136,20 +129,18 @@ io.on("connection", (socket) => {
 });
 
 // =====================
-// Start server AFTER DB
+// Start server
 // =====================
 const PORT = process.env.PORT || 3000;
 
 (async () => {
   try {
-    console.log("Connecting to PostgreSQL...");
     await initDB();
-
-    server.listen(PORT, "0.0.0.0", () => {
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
   } catch (err) {
-    console.error("Startup error:", err);
+    console.error(err);
     process.exit(1);
   }
 })();
